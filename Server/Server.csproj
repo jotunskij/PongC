@@ -5,4 +5,6 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <Import Project="..\Commons\Commons.projitems" Label="Shared" />
+
 </Project>

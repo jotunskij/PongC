@@ -14,7 +14,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Commons", "Commons\Commons.shproj", "{E9A5790F-A0B3-493B-AEEF-78FADC011E0E}"
+EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Commons\Commons.projitems*{d24aa534-b5ae-42fe-a262-bb6bf2e88f1e}*SharedItemsImports = 5
+		Commons\Commons.projitems*{d905d3f6-9159-4199-beb8-b0bf84b3a8bf}*SharedItemsImports = 5
+		Commons\Commons.projitems*{e9a5790f-a0b3-493b-aeef-78fadc011e0e}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
