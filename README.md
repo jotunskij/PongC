@@ -16,8 +16,10 @@
 ## Time
 4/8 30min - read spec, chose stack, setup repo, setup env, conceptual brainstorming
 - git, vscode, pyenv, poetry, pygame, asyncio streams
+
 5/8 10min - wslg (linux guis in wsl2) only win insider, switching to c#
 - monogame, async sockets
+
 5/8 10min - installed monogame vs extension, setup new repo, created first file layouts
 5/8 30min - started with server socket and game object structures
 5/8 2hrs - set up some project scopes, coding
