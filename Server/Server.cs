@@ -20,6 +20,80 @@ namespace Server
             return PlayerOne != null && PlayerTwo != null;
         }
 
+        public static void HandleCollisions()
+        {
+            foreach (var b in Balls)
+            {
+                // Ceiling or floor bounce - invert y-speed
+                if (b.Position.Item2 - b.Radius <= 0 || b.Position.Item2 + b.Radius >= Config.WindowHeight)
+                    b.SpeedVector = new Tuple<int, int>(b.SpeedVector.Item1, b.SpeedVector.Item2 * -1);
+                // Paddle collision - invert x-speed
+                if (PlayerBallCollision(PlayerOne, b) || PlayerBallCollision(PlayerTwo, b))
+                    b.SpeedVector = new Tuple<int, int>(b.SpeedVector.Item1 * -1, b.SpeedVector.Item2);
+            }
+        }
+
+        public static List<Ball> GetPlayerOneScoringBalls()
+        {
+            var scoringBalls = new List<Ball>();
+            foreach (var b in Balls)
+            {
+                // Player 2 scores
+                if (b.Position.Item1 - b.Radius >= Config.WindowWidth)
+                {
+                    scoringBalls.Add(b);
+                }
+            }
+
+            return scoringBalls;
+
+        }
+
+        public static List<Ball> GetPlayerTwoScoringBalls()
+        {
+            var scoringBalls = new List<Ball>();
+            foreach (var b in Balls)
+            {
+                // Player 2 scores
+                if (b.Position.Item1 - b.Radius <= 0)
+                {
+                    scoringBalls.Add(b);
+                }
+            }
+
+            return scoringBalls;
+        }
+
+        private static bool PlayerBallCollision(Player p, Ball b)
+        {
+            Tuple<int, int> ballEdge;
+            Tuple<int, int> playerEdgeTop;
+            Tuple<int, int> playerEdgeBottom;
+            if (p.IsFirstPlayer)
+            {
+                // Edge is ball left most point
+                ballEdge = new Tuple<int, int>(b.Position.Item1 - b.Radius, b.Position.Item2);
+                // Left player, so add width of paddle to X
+                playerEdgeTop = new Tuple<int, int>(p.Position.Item1 + Config.PaddleWidth, p.Position.Item2);
+                playerEdgeBottom = new Tuple<int, int>(p.Position.Item1 + Config.PaddleWidth, p.Position.Item2 + Config.PaddleHeight);
+                // It's past the X of the paddle, and between the top and bottom - collision
+                return ballEdge.Item1 <= playerEdgeBottom.Item1 &&
+                       ballEdge.Item2 >= playerEdgeTop.Item2 &&
+                       ballEdge.Item2 <= playerEdgeBottom.Item2;
+            }
+            else
+            {
+                // Edge is ball right most point
+                ballEdge = new Tuple<int, int>(b.Position.Item1 + b.Radius, b.Position.Item2);
+                // Right player, so position is already left most edge
+                playerEdgeTop = new Tuple<int, int>(p.Position.Item1, p.Position.Item2);
+                playerEdgeBottom = new Tuple<int, int>(p.Position.Item1, p.Position.Item2 + Config.PaddleHeight);
+                return ballEdge.Item1 >= playerEdgeBottom.Item1 &&
+                       ballEdge.Item2 >= playerEdgeTop.Item2 &&
+                       ballEdge.Item2 <= playerEdgeBottom.Item2;
+            }
+        }
+
         public static Player AddPlayer(Player player)
         {
             if (PlayerOne == null)
@@ -67,22 +141,30 @@ namespace Server
             }
         }
 
-        public static void AddBall(int radius = Config.BallDefaultRadius)
+        public static Ball AddBall(int radius = Config.BallDefaultRadius)
         {
+            var rand = new Random();
             if (Balls.Count < Config.MaxBalls)
             {
                 var ball = new Ball()
                 {
                     Position = new Tuple<int, int>(0, 0),
                     Number = Balls.Max(b => b.Number) + 1,
-                    Radius = radius
+                    Radius = radius,
+                    // Either -1 och 1 for both axis
+                    SpeedVector = new Tuple<int, int>(
+                        rand.Next(0, 1) == 0 ? -1 : 1, 
+                        rand.Next(0, 1) == 0 ? -1 : 1
+                    )
                 };
                 Balls.Add(ball);
                 Console.WriteLine("Ball added");
+                return ball;
             }
             else
             {
                 Console.WriteLine("Max # balls reached");
+                return null;
             }
         }
 
@@ -171,11 +253,55 @@ namespace Server
                 LastTick = DateTime.Now;
                 return;
             }
-            
-            // TODO: Check ball/paddle collisions
-            // TODO: Check ball past edge of screen
-            // TODO: Update scores - send message
-            // TODO: Remove dead balls, add new - send message
+
+            // Add balls up to minimum amount
+            if (GameObject.Balls.Count < Config.MinBalls)
+            {
+                for (var i = GameObject.Balls.Count; i < Config.MinBalls; i++)
+                {
+                    var ball = GameObject.AddBall();
+                    if (ball != null)
+                        Broadcast(Network.BallAddCmd(
+                            ball.Number,
+                            ball.Position.Item1,
+                            ball.Position.Item2,
+                            ball.Radius,
+                            ball.SpeedVector.Item1,
+                            ball.SpeedVector.Item2)
+                        );
+                }
+            }
+
+            // Handle ball-paddle/ceiling/floor collisions
+            GameObject.HandleCollisions();
+
+            // Handle scoring balls
+            var scoringBallsOne = GameObject.GetPlayerOneScoringBalls();
+            if (scoringBallsOne.Count > 0)
+            {
+                GameObject.PlayerOne.Score += scoringBallsOne.Count;
+            }
+            var scoringBallsTwo = GameObject.GetPlayerTwoScoringBalls();
+            if (scoringBallsTwo.Count > 0)
+            {
+                GameObject.PlayerTwo.Score += scoringBallsTwo.Count;
+            }
+
+            // Update clients on removed balls, and remove them
+            scoringBallsOne.AddRange(scoringBallsTwo);
+            foreach (var b in scoringBallsOne)
+            {
+                Broadcast(Network.BallRemoveCmd(b.Number));
+                GameObject.RemoveBall(b);
+            }
+
+            // Update clients on new score
+            Broadcast(Network.ScoreUpdateCmd(GameObject.PlayerOne.Score, GameObject.PlayerTwo.Score));
+
+            // Update clients on ball positions
+            foreach (var b in GameObject.Balls)
+                Broadcast(Network.BallPositionCmd(b.Number, b.Position.Item1, b.Position.Item2));
+
             LastTick = DateTime.Now;
         }
 
@@ -200,14 +326,10 @@ namespace Server
         public static void ReadCallback(IAsyncResult ar)
         {
             var content = string.Empty;
-
-            // Retrieve the state object and the handler socket  
-            // from the asynchronous state object.  
             var player = (Player) ar.AsyncState;
             var handler = player.Socket;
 
-            // Read data from the client socket.
-            var bytesRead = 0;
+            int bytesRead;
             try
             {
                 bytesRead = handler.EndReceive(ar);
@@ -219,26 +341,27 @@ namespace Server
                 return;
             }
 
-            if (bytesRead > 0)
-            {
-                // There  might be more data, so store the data received so far.  
-                player.sb.Append(Encoding.ASCII.GetString(
-                    player.Buffer, 0, bytesRead));
+            if (bytesRead <= 0) 
+                return;
 
-                content = player.sb.ToString();
-                if (content.IndexOf("#") > -1)
-                {
-                    Console.WriteLine("Read {0} bytes from socket. \n Data : {1}",
-                        content.Length, content);
-                    var msg = Network.ParseMessage(content);
-                    HandleMessage(msg);
-                }
-                else
-                {
-                    // Not all data received. Get more.  
-                    handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
-                        ReadCallback, player);
-                }
+            // There  might be more data, so store the data received so far.  
+            player.sb.Append(Encoding.ASCII.GetString(
+                player.Buffer, 0, bytesRead));
+
+            content = player.sb.ToString();
+            if (content.IndexOf("#") > -1)
+            {
+                Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
+                var msg = Network.ParseMessage(content);
+                HandleMessage(msg);
+                handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
+                    ReadCallback, player);
+            }
+            else
+            {
+                // Not all data received. Get more.  
+                handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
+                    ReadCallback, player);
             }
         }
 
@@ -250,16 +373,27 @@ namespace Server
                 return;
             }
 
-            if (message.MessageType == Message.TypeEnum.PADDLE_POSITION)
+            switch (message.MessageType)
             {
-                var player = GameObject.GetPlayer(message.Parameter1);
-                player.Position = new Tuple<int, int>(message.Parameter2, message.Parameter3);
+                case Message.TypeEnum.PADDLE_POSITION:
+                    Console.WriteLine($"Got PADDLE_POSITION message"); 
+                    var player = GameObject.GetPlayer(message.Number);
+                    player.Position = new Tuple<int, int>(message.PositionX, message.PositionY);
+                    Broadcast(Network.PaddlePositionCmd(player.Number, player.Position.Item1, player.Position.Item2));
+                    break;
             }
+
+        }
+
+        private static void Broadcast(string data)
+        {
+            Send(GameObject.PlayerOne, data);
+            Send(GameObject.PlayerTwo, data);
         }
 
         private static void Send(Player player, string data)
         {
-            // Convert the string data to byte data using ASCII encoding.  
+            Console.WriteLine($"Sending {data} to player {player.Number}"); 
             var byteData = Encoding.ASCII.GetBytes(data);
             var handler = player.Socket;
 
@@ -278,9 +412,6 @@ namespace Server
                 // Complete sending the data to the remote device.  
                 var bytesSent = handler.EndSend(ar);
                 Console.WriteLine("Sent {0} bytes to client.", bytesSent);
-
-                //handler.Shutdown(SocketShutdown.Both);
-                //handler.Close();
             }
             catch (Exception e)
             {

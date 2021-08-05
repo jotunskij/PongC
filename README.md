@@ -11,6 +11,7 @@
 - More flexible handling of player numbers
 - Hardcoded configuration
 - UDP for performance perhaps
+- Refactoring - message handling, function size..
 - VR support ;)
 
 ## Time
@@ -26,6 +27,9 @@
 
 5/8 2hrs - set up some project scopes, coding
 - server "finished", client socket programming "finished", shared project done
+
+5/8 1hr - coding, refactoring
+- worked on server game loop (collisions, message sending, scoring..)
 
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles

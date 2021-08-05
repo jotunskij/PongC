@@ -90,6 +90,9 @@ namespace Client
                         Trace.WriteLine($"Received {content}");
                         var msg = Network.ParseMessage(content);
                         HandleMessage(msg);
+                        // Get next message
+                        Player.Socket.BeginReceive(Player.Buffer, 0, Config.BufferSize, 0,
+                            ReceiveCallback, Player);
                     }
                     else
                     {
@@ -148,33 +151,54 @@ namespace Client
 
         private void SendPosition()
         {
-            Send(Network.PlayerPositionCmd(Player.Number, Player.Position.Item1, Player.Position.Item2));
+            Send(Network.PaddlePositionCmd(Player.Number, Player.Position.Item1, Player.Position.Item2));
         }
 
         public void HandleMessage(Message message)
         {
             if (message == null)
                 return;
+            switch (message.MessageType)
+            {
+                case Message.TypeEnum.PLAYER_ASSIGNMENT:
+                    Trace.WriteLine($"Got assigned player nr {message.Number}");
+                    Player.Number = message.Number;
+                    break;
+                case Message.TypeEnum.BALL_POSITION:
+                    var ball = Balls.FirstOrDefault(b => b.Number == message.Number);
+                    if (ball == null)
+                        return;
+                    ball.Position = new Tuple<int, int>(message.PositionX, message.PositionY);
+                    break;
+                case Message.TypeEnum.BALL_ADD:
+                    Balls.Add(new Ball()
+                    {
+                        Number = message.Number,
+                        Position = new Tuple<int, int>(message.PositionX, message.PositionY),
+                        Radius = message.Radius,
+                        SpeedVector = new Tuple<int, int>(message.SpeedX, message.SpeedY)
+                    });
+                    break;
+                case Message.TypeEnum.BALL_REMOVE:
+                    for (var i = Balls.Count - 1; i >= 0; i--)
+                    {
+                        if (Balls[i].Number == message.Number)
+                            Balls.RemoveAt(i);
+                    }
+                    break;
+            }
+
             if (message.MessageType == Message.TypeEnum.PLAYER_ASSIGNMENT)
             {
-                Trace.WriteLine($"Got assigned player nr {message.Parameter1}");
-                Player.Number = message.Parameter1;
+
             }
             if (message.MessageType == Message.TypeEnum.BALL_POSITION)
             {
-                var ball = Balls.FirstOrDefault(b => b.Number == message.Parameter1);
-                if (ball == null)
-                    return;
-                ball.Position = new Tuple<int, int>(message.Parameter2, message.Parameter3);
+
             }
             if (message.MessageType == Message.TypeEnum.BALL_ADD)
             {
-                Balls.Add(new Ball()
-                {
-                    Number = message.Parameter1,
-                    Position = new Tuple<int, int>(message.Parameter2, message.Parameter3),
-                    Radius = message.Parameter4
-                });
+
             }
         }
 
