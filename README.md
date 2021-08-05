@@ -21,13 +21,17 @@
 - monogame, async sockets
 
 5/8 10min - installed monogame vs extension, setup new repo, created first file layouts
+
 5/8 30min - started with server socket and game object structures
+
 5/8 2hrs - set up some project scopes, coding
 - server "finished", client socket programming "finished", shared project done
 
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles
  - key press version will probably cause input lag, keeping local player position locally
+
 server checks for collision -> broadcast ball position -> client draws ball
+
 server checks for goal -> updates score -> resets ball
  
