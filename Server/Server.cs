@@ -352,6 +352,7 @@ namespace Server
                     Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
                     var msg = Network.ParseMessage(content);
                     HandleMessage(msg);
+                    player.sb.Clear();
                 }
             }
 

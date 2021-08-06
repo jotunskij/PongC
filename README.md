@@ -11,7 +11,7 @@
 - More flexible handling of message parameters
 - More flexible handling of player numbers
 - Hardcoded configuration
-- UDP for performance perhaps
+- More robust socket programming
 - Refactoring - message handling, function size..
 - Batch messaging (because of multiball)
 - VR support ;)
@@ -33,7 +33,7 @@
 5/8 1hr - coding, refactoring
 - worked on server game loop (collisions, message sending, scoring..)
 
-6/8 45min - monogame texturing, drawing, input handling
+6/8 1hr15min - monogame texturing, drawing, input handling
 
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles

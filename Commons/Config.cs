@@ -76,6 +76,7 @@ namespace Commons
 
         public static Message ParseMessage(string message)
         {
+            message = message.Trim();
             var matches = PlayerAssigmentRE.Matches(message);
             if (matches.Count > 0)
             {
@@ -143,37 +144,37 @@ namespace Commons
             return null;
         }
 
-        public static Regex PlayerAssigmentRE = new Regex(@"PLAYER ([1,2])#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
+        public static Regex PlayerAssigmentRE = new (@"PLAYER ([1,2])#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
         public static string PlayerAssigmentCmd(int playerNr)
         {
             return $"PLAYER {playerNr}#";
         }
 
-        public static Regex PaddlePositionRE = new Regex(@"PADDLE ([1,2]),(\d),(\d)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
+        public static Regex PaddlePositionRE = new (@"PADDLE ([1,2]),(\d+),(\d+)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
         public static string PaddlePositionCmd(int playerNr, int posX, int posY)
         {
             return $"PADDLE {playerNr},{posX},{posY}#";
         }
 
-        public static Regex BallPositionRE = new Regex(@"BALLPOS (\d),(\d),(\d)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
+        public static Regex BallPositionRE = new (@"BALLPOS (\d+),(\d+),(\d+)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
         public static string BallPositionCmd(int ballNr, int posX, int posY)
         {
             return $"BALLPOS {ballNr},{posX},{posY}#";
         }
 
-        public static Regex BallAddRE = new Regex(@"BALLADD (\d),(\d),(\d),(\d),(\d),(\d)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
+        public static Regex BallAddRE = new (@"BALLADD (\d+),(\d+),(\d+),(\d+),(\d+),(\d+)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
         public static string BallAddCmd(int ballNr, int posX, int posY, int radius, int speedX, int speedY)
         {
             return $"BALLADD {ballNr},{posX},{posY},{radius},{speedX},{speedY}#";
         }
 
-        public static Regex BallRemoveRE = new Regex(@"BALLREM (\d)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
+        public static Regex BallRemoveRE = new (@"BALLREM (\d+)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
         public static string BallRemoveCmd(int ballNr)
         {
             return $"BALLREM {ballNr}#";
         }
 
-        public static Regex ScoreUpdateRE = new Regex(@"SCORE (\d),(\d)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
+        public static Regex ScoreUpdateRE = new Regex(@"SCORE (\d+),(\d+)#", RegexOptions.Compiled | RegexOptions.IgnoreCase);  
         public static string ScoreUpdateCmd(int player1Score, int player2Score)
         {
             return $"SCORE {player1Score},{player2Score}#";

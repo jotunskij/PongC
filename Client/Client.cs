@@ -51,14 +51,14 @@ namespace Client
                 client.BeginConnect(serverEndPoint,
                     ConnectCallback, client);  
                 connectDone.WaitOne();
-                Trace.WriteLine("Connected to server");
+                Console.WriteLine("Connected to server");
 
                 // Wait for the player assignment message
                 Receive();
                 receiveDone.WaitOne();
 
             } catch (Exception e) {  
-                Trace.WriteLine(e.ToString());  
+                Console.WriteLine(e.ToString());  
             }  
         }
 
@@ -68,7 +68,7 @@ namespace Client
                 Player.Socket.BeginReceive(Player.Buffer, 0, Config.BufferSize, 0,  
                     ReceiveCallback, Player);  
             } catch (Exception e) {  
-                Trace.WriteLine(e.ToString()); 
+                Console.WriteLine(e.ToString()); 
             }
         }
   
@@ -76,7 +76,7 @@ namespace Client
             try
             {
                 var content = string.Empty;
-                Trace.WriteLine("In ReceiveCallback");
+                Console.WriteLine("In ReceiveCallback");
                 // Read data from the remote device.  
                 var bytesRead = Player.Socket.EndReceive(ar);
   
@@ -88,9 +88,11 @@ namespace Client
                     content = Player.sb.ToString();
                     if (content.IndexOf("#") > -1)
                     {
-                        Trace.WriteLine($"Received {content}");
+                        Console.WriteLine($"Received {content}");
                         var msg = Network.ParseMessage(content);
                         HandleMessage(msg);
+                        Player.sb.Clear();
+                        receiveDone.Set();
                     }
                 }
 
@@ -99,16 +101,16 @@ namespace Client
                     ReceiveCallback, Player);
 
             } catch (Exception e) {  
-                Trace.WriteLine(e.ToString());  
+                Console.WriteLine(e.ToString());  
             }  
         }
 
         private void Send(string data)
         {
-            Trace.WriteLine($"Sending {data}");
+            Console.WriteLine($"Sending {data}");
             var byteData = Encoding.ASCII.GetBytes(data);  
   
-            Player.Socket.BeginSend(byteData, 0, byteData.Length, 0,  
+            aPlayer.Socket.BeginSend(byteData, 0, byteData.Length, 0,  
                 SendCallback, Player);  
         }  
   
@@ -116,12 +118,12 @@ namespace Client
             try {  
                 // Complete sending the data to the remote device.  
                 var bytesSent = Player.Socket.EndSend(ar);  
-                Trace.WriteLine($"Sent {bytesSent} bytes to server.");  
+                Console.WriteLine($"Sent {bytesSent} bytes to server.");  
   
                 // Signal that all bytes have been sent.  
                 sendDone.Set();
             } catch (Exception e) {  
-                Trace.WriteLine(e.ToString());  
+                Console.WriteLine(e.ToString());  
             }  
         } 
 
@@ -132,17 +134,14 @@ namespace Client
   
                 // Complete the connection. 
                 client.EndConnect(ar);
-                Player = new Player()
-                {
-                    Socket = client
-                };
+                Player.Socket = client;
   
-                Trace.WriteLine($"Socket connected to {client.RemoteEndPoint}");
+                Console.WriteLine($"Socket connected to {client.RemoteEndPoint}");
   
                 // Signal that the connection has been made.
                 connectDone.Set();
             } catch (Exception e) {  
-                Trace.WriteLine(e.ToString());  
+                Console.WriteLine(e.ToString());  
             }  
         }
 
@@ -158,8 +157,19 @@ namespace Client
             switch (message.MessageType)
             {
                 case Message.TypeEnum.PLAYER_ASSIGNMENT:
-                    Trace.WriteLine($"Got assigned player nr {message.Number}");
+                    Console.WriteLine($"Got assigned player nr {message.Number}");
                     Player.Number = message.Number;
+                    // Position first player to the left, second to the right
+                    if (Player.IsFirstPlayer)
+                    {
+                        Opponent.Position = new Tuple<int, int>(Config.WindowWidth - Config.PaddleWidth, Config.WindowHeight / 2);
+                        Player.Position = new Tuple<int, int>(0, Config.WindowHeight / 2);
+                    }
+                    else
+                    {
+                        Opponent.Position = new Tuple<int, int>(0, Config.WindowHeight / 2);
+                        Player.Position = new Tuple<int, int>(Config.WindowWidth - Config.PaddleWidth, Config.WindowHeight / 2);
+                    }
                     break;
                 case Message.TypeEnum.BALL_POSITION:
                     var ball = Balls.FirstOrDefault(b => b.Number == message.Number);
@@ -190,6 +200,9 @@ namespace Client
         {
             Graphics.PreferredBackBufferWidth = Config.WindowWidth;
             Graphics.PreferredBackBufferHeight = Config.WindowHeight;
+            Player = new Player();
+            Opponent = new Player();
+            Balls = new List<Ball>();
             StartClient();
             base.Initialize();
         }
