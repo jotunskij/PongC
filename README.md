@@ -3,6 +3,7 @@
 ## Scope
 - 2 players
 - multiple balls
+- variable ball radius
 - x-platform
 
 ## Needs work
@@ -12,6 +13,7 @@
 - Hardcoded configuration
 - UDP for performance perhaps
 - Refactoring - message handling, function size..
+- Batch messaging (because of multiball)
 - VR support ;)
 
 ## Time
@@ -30,6 +32,8 @@
 
 5/8 1hr - coding, refactoring
 - worked on server game loop (collisions, message sending, scoring..)
+
+6/8 30min - monogame texturing, drawing
 
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles

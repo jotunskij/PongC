@@ -183,7 +183,7 @@ namespace Server
     public class Server
     {
         // Thread signal.  
-        public static ManualResetEvent allDone = new ManualResetEvent(false);
+        public static ManualResetEvent playerConnectedLock = new ManualResetEvent(false);
         public static DateTime LastTick = DateTime.MinValue;
 
         public static void StartServer()
@@ -206,7 +206,7 @@ namespace Server
                     if (GameObject.PlayerOne == null)
                     {
                         // Set the event to nonsignaled state.  
-                        allDone.Reset();
+                        playerConnectedLock.Reset();
 
                         // Start an asynchronous socket to listen for connections.  
                         Console.WriteLine("Waiting for player 1...");
@@ -215,14 +215,14 @@ namespace Server
                             listener);
 
                         // Wait until a connection is made before continuing.  
-                        allDone.WaitOne();
+                        playerConnectedLock.WaitOne();
                         Send(GameObject.PlayerOne, Network.PlayerAssigmentCmd(GameObject.PlayerOne.Number));
                     }
 
                     if (GameObject.PlayerTwo == null)
                     {
                         // Set the event to nonsignaled state.  
-                        allDone.Reset();
+                        playerConnectedLock.Reset();
 
                         // Start an asynchronous socket to listen for connections.  
                         Console.WriteLine("Waiting for player 2...");
@@ -231,7 +231,7 @@ namespace Server
                             listener);
 
                         // Wait until a connection is made before continuing.  
-                        allDone.WaitOne();
+                        playerConnectedLock.WaitOne();
                         Send(GameObject.PlayerTwo, Network.PlayerAssigmentCmd(GameObject.PlayerTwo.Number));
                     }
 
@@ -317,7 +317,7 @@ namespace Server
             Console.WriteLine($"Player {player.Number} connected!");
 
             // Signal the main thread to continue.  
-            allDone.Set();
+            playerConnectedLock.Set();
 
             handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
                 ReadCallback, player);

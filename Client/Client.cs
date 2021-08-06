@@ -16,11 +16,13 @@ namespace Client
 
     public class Client : Game
     {
-        private GraphicsDeviceManager _graphics;
-        private SpriteBatch _spriteBatch;
+        private GraphicsDeviceManager Graphics { get; set; }
+        private SpriteBatch SpriteBatch { get; set; }
         private Player Player { get; set; }
         private Player Opponent { get; set; }
         private List<Ball> Balls { get; set; }
+        private Texture2D BallTexture { get; set; }
+        private Texture2D PaddleTexture { get; set; }
 
         private static ManualResetEvent connectDone =
             new ManualResetEvent(false);
@@ -31,7 +33,7 @@ namespace Client
 
         public Client()
         {
-            _graphics = new GraphicsDeviceManager(this);
+            Graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
         }
@@ -187,34 +189,21 @@ namespace Client
                     }
                     break;
             }
-
-            if (message.MessageType == Message.TypeEnum.PLAYER_ASSIGNMENT)
-            {
-
-            }
-            if (message.MessageType == Message.TypeEnum.BALL_POSITION)
-            {
-
-            }
-            if (message.MessageType == Message.TypeEnum.BALL_ADD)
-            {
-
-            }
         }
 
         protected override void Initialize()
         {
-            _graphics.PreferredBackBufferWidth = Config.WindowWidth;
-            _graphics.PreferredBackBufferHeight = Config.WindowHeight;
+            Graphics.PreferredBackBufferWidth = Config.WindowWidth;
+            Graphics.PreferredBackBufferHeight = Config.WindowHeight;
             StartClient();
             base.Initialize();
         }
 
         protected override void LoadContent()
         {
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            // TODO: use this.Content to load your game content here
+            SpriteBatch = new SpriteBatch(GraphicsDevice);
+            PaddleTexture = Content.Load<Texture2D>("paddle");
+            BallTexture = Content.Load<Texture2D>("ball");
         }
 
         protected override void Update(GameTime gameTime)
@@ -230,9 +219,30 @@ namespace Client
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
+            SpriteBatch.Begin();
 
-            // TODO: Add your drawing code here
+            SpriteBatch.Draw(
+                PaddleTexture,
+                new Rectangle(Player.Position.Item1, Player.Position.Item2, Config.PaddleWidth, Config.PaddleHeight), 
+                Color.White
+            );
 
+            SpriteBatch.Draw(
+                PaddleTexture, 
+                new Rectangle(Opponent.Position.Item1, Opponent.Position.Item2, Config.PaddleWidth, Config.PaddleHeight), 
+                Color.White
+            );
+
+            foreach (var b in Balls)
+            {
+                SpriteBatch.Draw(
+                    BallTexture, 
+                    new Rectangle(b.Position.Item1 - b.Radius, b.Position.Item2 - b.Radius, b.Radius * 2, b.Radius * 2), 
+                    Color.White
+                );
+            }
+
+            SpriteBatch.End();
             base.Draw(gameTime);
         }
     }
