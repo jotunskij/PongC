@@ -33,7 +33,7 @@
 5/8 1hr - coding, refactoring
 - worked on server game loop (collisions, message sending, scoring..)
 
-6/8 30min - monogame texturing, drawing
+6/8 45min - monogame texturing, drawing, input handling
 
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles

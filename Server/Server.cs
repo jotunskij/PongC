@@ -341,28 +341,23 @@ namespace Server
                 return;
             }
 
-            if (bytesRead <= 0) 
-                return;
-
-            // There  might be more data, so store the data received so far.  
-            player.sb.Append(Encoding.ASCII.GetString(
-                player.Buffer, 0, bytesRead));
-
-            content = player.sb.ToString();
-            if (content.IndexOf("#") > -1)
+            if (bytesRead > 0)
             {
-                Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
-                var msg = Network.ParseMessage(content);
-                HandleMessage(msg);
-                handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
-                    ReadCallback, player);
+                // There  might be more data, so store the data received so far.  
+                player.sb.Append(Encoding.ASCII.GetString(player.Buffer, 0, bytesRead));
+
+                content = player.sb.ToString();
+                if (content.IndexOf("#") > -1)
+                {
+                    Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
+                    var msg = Network.ParseMessage(content);
+                    HandleMessage(msg);
+                }
             }
-            else
-            {
-                // Not all data received. Get more.  
-                handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
-                    ReadCallback, player);
-            }
+
+            // Get more data or next message  
+            handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
+                ReadCallback, player);
         }
 
         public static void HandleMessage(Message message)

@@ -19,6 +19,7 @@ namespace Commons
         public const int WindowHeight = 768;
         public const int PaddleHeight = 100;
         public const int PaddleWidth = 20;
+        public const int PaddleSpeed = 5;
         public const int BallDefaultRadius = 10;
         // Run at 60 ticks/second
         public const int MsPerTick = 1000 / 60;

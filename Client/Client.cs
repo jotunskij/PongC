@@ -83,8 +83,7 @@ namespace Client
                 if (bytesRead > 0)
                 {
                     // There  might be more data, so store the data received so far.  
-                    Player.sb.Append(Encoding.ASCII.GetString(
-                        Player.Buffer, 0, bytesRead));
+                    Player.sb.Append(Encoding.ASCII.GetString(Player.Buffer, 0, bytesRead));
 
                     content = Player.sb.ToString();
                     if (content.IndexOf("#") > -1)
@@ -92,17 +91,13 @@ namespace Client
                         Trace.WriteLine($"Received {content}");
                         var msg = Network.ParseMessage(content);
                         HandleMessage(msg);
-                        // Get next message
-                        Player.Socket.BeginReceive(Player.Buffer, 0, Config.BufferSize, 0,
-                            ReceiveCallback, Player);
                     }
-                    else
-                    {
-                        // Not all data received. Get more.  
-                        Player.Socket.BeginReceive(Player.Buffer, 0, Config.BufferSize, 0,
-                            ReceiveCallback, Player);
-                    }
-                }  
+                }
+
+                // Get more data or next message
+                Player.Socket.BeginReceive(Player.Buffer, 0, Config.BufferSize, 0,
+                    ReceiveCallback, Player);
+
             } catch (Exception e) {  
                 Trace.WriteLine(e.ToString());  
             }  
@@ -208,12 +203,33 @@ namespace Client
 
         protected override void Update(GameTime gameTime)
         {
-            Receive();
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
-                Exit();
-
+            HandleInput();
             SendPosition();
             base.Update(gameTime);
+        }
+
+        protected void HandleInput()
+        {
+            // Player 2 down
+            if (Keyboard.GetState().IsKeyDown(Keys.Down) && Player.IsSecondPlayer)
+                UpdatePlayerPosition(Config.PaddleSpeed);
+            // Player 2 up
+            if (Keyboard.GetState().IsKeyDown(Keys.Up) && Player.IsSecondPlayer)
+                UpdatePlayerPosition(-Config.PaddleSpeed);
+            // Player 1 down
+            if (Keyboard.GetState().IsKeyDown(Keys.Z) && Player.IsFirstPlayer)
+                UpdatePlayerPosition(Config.PaddleSpeed);
+            // Player 1 up
+            if (Keyboard.GetState().IsKeyDown(Keys.A) && Player.IsFirstPlayer)
+                UpdatePlayerPosition(-Config.PaddleSpeed);
+        }
+
+        protected void UpdatePlayerPosition(int delta)
+        {
+            var clampedYPos = 
+                Math.Clamp(Player.Position.Item2 + delta, 0, Config.WindowHeight - Config.PaddleHeight);
+            Player.Position =
+                new Tuple<int, int>(Player.Position.Item1, clampedYPos);
         }
 
         protected override void Draw(GameTime gameTime)
