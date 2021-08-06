@@ -110,7 +110,7 @@ namespace Client
             Console.WriteLine($"Sending {data}");
             var byteData = Encoding.ASCII.GetBytes(data);  
   
-            aPlayer.Socket.BeginSend(byteData, 0, byteData.Length, 0,  
+            Player.Socket.BeginSend(byteData, 0, byteData.Length, 0,  
                 SendCallback, Player);  
         }  
   
