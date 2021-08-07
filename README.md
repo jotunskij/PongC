@@ -5,14 +5,15 @@
 - multiple balls
 - variable ball radius
 - x-platform
+- get it working
 
 ## Needs work
 - Exception handling
-- More flexible handling of message parameters
-- More flexible handling of player numbers
-- Hardcoded configuration
+- More flexible handling of messages + regex
+- More flexible handling of players (position, number, input)
+- More dynamic approach to configuration
 - More robust socket programming
-- Refactoring - message handling, function size..
+- Refactoring/clean up - function sizes, file splitting, code formatting, comments..
 - Batch messaging (because of multiball)
 - VR support ;)
 
