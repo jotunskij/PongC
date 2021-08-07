@@ -22,6 +22,7 @@ namespace Client
         private Player Opponent { get; set; }
         private List<Ball> Balls { get; set; }
         private Texture2D BallTexture { get; set; }
+        private SpriteFont ScoreFont { get; set; }
         private Texture2D PaddleTexture { get; set; }
 
         private static ManualResetEvent connectDone =
@@ -76,7 +77,7 @@ namespace Client
             try
             {
                 var content = string.Empty;
-                Console.WriteLine("In ReceiveCallback");
+                //Console.WriteLine("In ReceiveCallback");
                 // Read data from the remote device.  
                 var bytesRead = Player.Socket.EndReceive(ar);
   
@@ -88,9 +89,9 @@ namespace Client
                     content = Player.sb.ToString();
                     if (content.IndexOf("#") > -1)
                     {
-                        Console.WriteLine($"Received {content}");
-                        var msg = Network.ParseMessage(content);
-                        HandleMessage(msg);
+                        //Console.WriteLine($"Received {content}");
+                        var messages = Network.ParseMessage(content);
+                        HandleMessage(messages);
                         Player.ResetBuffer();
                         receiveDone.Set();
                     }
@@ -107,7 +108,7 @@ namespace Client
 
         private void Send(string data)
         {
-            Console.WriteLine($"Sending {data}");
+            //Console.WriteLine($"Sending {data}");
             var byteData = Encoding.ASCII.GetBytes(data);  
   
             Player.Socket.BeginSend(byteData, 0, byteData.Length, 0,  
@@ -118,7 +119,7 @@ namespace Client
             try {  
                 // Complete sending the data to the remote device.  
                 var bytesSent = Player.Socket.EndSend(ar);  
-                Console.WriteLine($"Sent {bytesSent} bytes to server.");  
+                //Console.WriteLine($"Sent {bytesSent} bytes to server.");  
   
                 // Signal that all bytes have been sent.  
                 sendDone.Set();
@@ -147,52 +148,71 @@ namespace Client
 
         private void SendPosition()
         {
-            Send(Network.PaddlePositionCmd(Player.Number, Player.Position.Item1, Player.Position.Item2));
+            if (Player.Position == null)
+                return;
+            if (!Player.Position.Equals(Player.LastPosition))
+                Send(Network.PaddlePositionCmd(Player));
         }
 
-        public void HandleMessage(Message message)
+        public void HandleMessage(List<Message> messages)
         {
-            if (message == null)
+            if (messages == null || messages.Count == 0)
                 return;
-            switch (message.MessageType)
+            foreach (var message in messages)
             {
-                case Message.TypeEnum.PLAYER_ASSIGNMENT:
-                    Console.WriteLine($"Got assigned player nr {message.Number}");
-                    Player.Number = message.Number;
-                    // Position first player to the left, second to the right
-                    if (Player.IsFirstPlayer)
-                    {
-                        Opponent.Position = new Tuple<int, int>(Config.WindowWidth - Config.PaddleWidth, Config.WindowHeight / 2);
-                        Player.Position = new Tuple<int, int>(0, Config.WindowHeight / 2);
-                    }
-                    else
-                    {
-                        Opponent.Position = new Tuple<int, int>(0, Config.WindowHeight / 2);
-                        Player.Position = new Tuple<int, int>(Config.WindowWidth - Config.PaddleWidth, Config.WindowHeight / 2);
-                    }
-                    break;
-                case Message.TypeEnum.BALL_POSITION:
-                    var ball = Balls.FirstOrDefault(b => b.Number == message.Number);
-                    if (ball == null)
-                        return;
-                    ball.Position = new Tuple<int, int>(message.PositionX, message.PositionY);
-                    break;
-                case Message.TypeEnum.BALL_ADD:
-                    Balls.Add(new Ball()
-                    {
-                        Number = message.Number,
-                        Position = new Tuple<int, int>(message.PositionX, message.PositionY),
-                        Radius = message.Radius,
-                        SpeedVector = new Tuple<int, int>(message.SpeedX, message.SpeedY)
-                    });
-                    break;
-                case Message.TypeEnum.BALL_REMOVE:
-                    for (var i = Balls.Count - 1; i >= 0; i--)
-                    {
-                        if (Balls[i].Number == message.Number)
-                            Balls.RemoveAt(i);
-                    }
-                    break;
+                switch (message.MessageType)
+                {
+                    case Message.TypeEnum.PLAYER_ASSIGNMENT:
+                        Console.WriteLine($"Got assigned player nr {message.Number}");
+                        Player.Number = message.Number;
+                        // Position first player to the left, second to the right
+                        if (Player.IsFirstPlayer)
+                        {
+                            Opponent.Position = new IVector2(Config.WindowWidth - Config.PaddleWidth, Config.WindowHeight / 2);
+                            Player.Position = new IVector2(0, Config.WindowHeight / 2);
+                        }
+                        else
+                        {
+                            Opponent.Position = new IVector2(0, Config.WindowHeight / 2);
+                            Player.Position = new IVector2(Config.WindowWidth - Config.PaddleWidth, Config.WindowHeight / 2);
+                        }
+                        break;
+                    case Message.TypeEnum.BALL_POSITION:
+                        var ball = Balls.FirstOrDefault(b => b.Number == message.Number);
+                        if (ball == null)
+                            return;
+                        ball.Position.X = message.PositionX;
+                        ball.Position.Y = message.PositionY;
+                        break;
+                    case Message.TypeEnum.BALL_ADD:
+                        Console.WriteLine($"Added new ball {message.Number}");
+                        Balls.Add(new Ball()
+                        {
+                            Number = message.Number,
+                            Position = new IVector2(message.PositionX, message.PositionY),
+                            Radius = message.Radius,
+                            Speed = new IVector2(message.SpeedX, message.SpeedY)
+                        });
+                        break;
+                    case Message.TypeEnum.BALL_REMOVE:
+                        Console.WriteLine($"Removed ball {message.Number}");
+                        for (var i = Balls.Count - 1; i >= 0; i--)
+                        {
+                            if (Balls[i].Number == message.Number)
+                                Balls.RemoveAt(i);
+                        }
+                        break;
+                    case Message.TypeEnum.PADDLE_POSITION:
+                        if (message.Number == Player.Number)
+                            break;
+                        Opponent.Position.X = message.PositionX;
+                        Opponent.Position.Y = message.PositionY;
+                        break;
+                    case Message.TypeEnum.SCORE_UPDATE:
+                        Player.Score = Player.IsFirstPlayer ? message.PlayerOneScore : message.PlayerTwoScore;
+                        Opponent.Score = Player.IsFirstPlayer ? message.PlayerTwoScore : message.PlayerOneScore;
+                        break;
+                }
             }
         }
 
@@ -200,9 +220,12 @@ namespace Client
         {
             Graphics.PreferredBackBufferWidth = Config.WindowWidth;
             Graphics.PreferredBackBufferHeight = Config.WindowHeight;
+            Graphics.ApplyChanges();
             Player = new Player();
             Opponent = new Player();
             Balls = new List<Ball>();
+            IsFixedTimeStep = true;  //Force the game to update at fixed time intervals
+            TargetElapsedTime = TimeSpan.FromSeconds(1 / 30.0f);  //Set the time interval to 1/30th of a second
             StartClient();
             base.Initialize();
         }
@@ -212,13 +235,23 @@ namespace Client
             SpriteBatch = new SpriteBatch(GraphicsDevice);
             PaddleTexture = Content.Load<Texture2D>("paddle");
             BallTexture = Content.Load<Texture2D>("ball");
+            ScoreFont = Content.Load<SpriteFont>("score");
         }
 
         protected override void Update(GameTime gameTime)
         {
             HandleInput();
             SendPosition();
+            UpdateLastPosition();
             base.Update(gameTime);
+        }
+
+        private void UpdateLastPosition()
+        {
+            if (Player.Position == null)
+                return;
+            Player.LastPosition.X = Player.Position.X;
+            Player.LastPosition.Y = Player.Position.Y;
         }
 
         protected void HandleInput()
@@ -240,9 +273,9 @@ namespace Client
         protected void UpdatePlayerPosition(int delta)
         {
             var clampedYPos = 
-                Math.Clamp(Player.Position.Item2 + delta, 0, Config.WindowHeight - Config.PaddleHeight);
-            Player.Position =
-                new Tuple<int, int>(Player.Position.Item1, clampedYPos);
+                Math.Clamp(Player.Position.Y + delta, 0, Config.WindowHeight - Config.PaddleHeight);
+            Player.Position.X = Player.Position.X;
+            Player.Position.Y = clampedYPos;
         }
 
         protected override void Draw(GameTime gameTime)
@@ -250,26 +283,51 @@ namespace Client
             GraphicsDevice.Clear(Color.CornflowerBlue);
             SpriteBatch.Begin();
 
+            // Draw player
             SpriteBatch.Draw(
                 PaddleTexture,
-                new Rectangle(Player.Position.Item1, Player.Position.Item2, Config.PaddleWidth, Config.PaddleHeight), 
+                new Vector2(Player.Position.X, Player.Position.Y), 
                 Color.White
             );
 
+            // Draw opponent
             SpriteBatch.Draw(
                 PaddleTexture, 
-                new Rectangle(Opponent.Position.Item1, Opponent.Position.Item2, Config.PaddleWidth, Config.PaddleHeight), 
+                new Vector2(Opponent.Position.X, Opponent.Position.Y), 
                 Color.White
             );
 
+            // Draw balls
             foreach (var b in Balls)
             {
                 SpriteBatch.Draw(
-                    BallTexture, 
-                    new Rectangle(b.Position.Item1 - b.Radius, b.Position.Item2 - b.Radius, b.Radius * 2, b.Radius * 2), 
-                    Color.White
+                    BallTexture,
+                    new Vector2(b.Position.X - b.Radius, b.Position.Y - b.Radius), 
+                    null, 
+                    Color.White, 
+                    0f, 
+                    Vector2.Zero, 
+                    (float) b.Radius / Config.BallDefaultRadius, // Scale factor
+                    SpriteEffects.None, 
+                    0f
                 );
             }
+
+            // Draw score
+            var firstPlayerScore = Player.IsFirstPlayer ? Player.Score : Opponent.Score;
+            var secondPlayerScore = Player.IsFirstPlayer ? Opponent.Score : Player.Score;
+            SpriteBatch.DrawString(
+                ScoreFont, 
+                firstPlayerScore.ToString(), 
+                new Vector2((Config.WindowWidth / 3) * 1, 50), 
+                Color.LightGray
+            );
+            SpriteBatch.DrawString(
+                ScoreFont, 
+                secondPlayerScore.ToString(), 
+                new Vector2((Config.WindowWidth / 3) * 2, 50), 
+                Color.LightGray
+            );
 
             SpriteBatch.End();
             base.Draw(gameTime);

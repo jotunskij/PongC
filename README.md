@@ -5,9 +5,14 @@
 - multiple balls
 - variable ball radius
 - x-platform
-- get it working
+- get it working.. ish
+
+## Known bugs
+- If NrOfBalls > 1 the messaging is buggy (doesn't work)
+- First ball of game is not picked up by clients
 
 ## Needs work
+- Tests
 - Exception handling
 - More flexible handling of messages + regex
 - More flexible handling of players (position, number, input)
@@ -15,6 +20,7 @@
 - More robust socket programming
 - Refactoring/clean up - function sizes, file splitting, code formatting, comments..
 - Batch messaging (because of multiball)
+- Better collision detection
 - VR support ;)
 
 ## Time
@@ -38,11 +44,14 @@
 
 7/8 15min - debugging session
 
-Total: 5hr50min
+7/8 1hr30min - finalization work, finalized documentation
+- IVector2, message optimizations, ball radius, nr of balls, score
+
+Total: 7hr20min + a few minutes here and there
 
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles
- - key press version will probably cause input lag, keeping local player position locally
+ - key press version will probably cause input lag, keeping player position locally
 
 server checks for collision -> broadcast ball position -> client draws ball
 

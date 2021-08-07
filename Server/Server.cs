@@ -25,11 +25,11 @@ namespace Server
             foreach (var b in Balls)
             {
                 // Ceiling or floor bounce - invert y-speed
-                if (b.Position.Item2 - b.Radius <= 0 || b.Position.Item2 + b.Radius >= Config.WindowHeight)
-                    b.SpeedVector = new Tuple<int, int>(b.SpeedVector.Item1, b.SpeedVector.Item2 * -1);
+                if (b.Position.Y - b.Radius <= 0 || b.Position.Y + b.Radius >= Config.WindowHeight)
+                    b.Speed.Y *= -1;
                 // Paddle collision - invert x-speed
                 if (PlayerBallCollision(PlayerOne, b) || PlayerBallCollision(PlayerTwo, b))
-                    b.SpeedVector = new Tuple<int, int>(b.SpeedVector.Item1 * -1, b.SpeedVector.Item2);
+                    b.Speed.X *= -1;
             }
         }
 
@@ -39,7 +39,7 @@ namespace Server
             foreach (var b in Balls)
             {
                 // Player 2 scores
-                if (b.Position.Item1 - b.Radius >= Config.WindowWidth)
+                if (b.Position.X - b.Radius >= Config.WindowWidth)
                 {
                     scoringBalls.Add(b);
                 }
@@ -55,7 +55,7 @@ namespace Server
             foreach (var b in Balls)
             {
                 // Player 2 scores
-                if (b.Position.Item1 - b.Radius <= 0)
+                if (b.Position.X - b.Radius <= 0)
                 {
                     scoringBalls.Add(b);
                 }
@@ -64,11 +64,20 @@ namespace Server
             return scoringBalls;
         }
 
+        public static void UpdateBallPositions()
+        {
+            foreach (var b in Balls)
+            {
+                b.Position.X += b.Speed.X;
+                b.Position.Y += b.Speed.Y;
+            }
+        }
+
         private static bool PlayerBallCollision(Player p, Ball b)
         {
-            Tuple<int, int> ballEdge;
-            Tuple<int, int> playerEdgeTop;
-            Tuple<int, int> playerEdgeBottom;
+            IVector2 ballEdge;
+            IVector2 playerEdgeTop;
+            IVector2 playerEdgeBottom;
 
             if (p.Position == null)
                 return false;
@@ -76,25 +85,25 @@ namespace Server
             if (p.IsFirstPlayer)
             {
                 // Edge is ball left most point
-                ballEdge = new Tuple<int, int>(b.Position.Item1 - b.Radius, b.Position.Item2);
+                ballEdge = new IVector2(b.Position.X - b.Radius, b.Position.Y);
                 // Left player, so add width of paddle to X
-                playerEdgeTop = new Tuple<int, int>(p.Position.Item1 + Config.PaddleWidth, p.Position.Item2);
-                playerEdgeBottom = new Tuple<int, int>(p.Position.Item1 + Config.PaddleWidth, p.Position.Item2 + Config.PaddleHeight);
+                playerEdgeTop = new IVector2(p.Position.X + Config.PaddleWidth, p.Position.Y);
+                playerEdgeBottom = new IVector2(p.Position.X + Config.PaddleWidth, p.Position.Y + Config.PaddleHeight);
                 // It's past the X of the paddle, and between the top and bottom - collision
-                return ballEdge.Item1 <= playerEdgeBottom.Item1 &&
-                       ballEdge.Item2 >= playerEdgeTop.Item2 &&
-                       ballEdge.Item2 <= playerEdgeBottom.Item2;
+                return ballEdge.X <= playerEdgeBottom.X &&
+                       ballEdge.Y >= playerEdgeTop.Y &&
+                       ballEdge.Y <= playerEdgeBottom.Y;
             }
             else
             {
                 // Edge is ball right most point
-                ballEdge = new Tuple<int, int>(b.Position.Item1 + b.Radius, b.Position.Item2);
+                ballEdge = new IVector2(b.Position.X + b.Radius, b.Position.Y);
                 // Right player, so position is already left most edge
-                playerEdgeTop = new Tuple<int, int>(p.Position.Item1, p.Position.Item2);
-                playerEdgeBottom = new Tuple<int, int>(p.Position.Item1, p.Position.Item2 + Config.PaddleHeight);
-                return ballEdge.Item1 >= playerEdgeBottom.Item1 &&
-                       ballEdge.Item2 >= playerEdgeTop.Item2 &&
-                       ballEdge.Item2 <= playerEdgeBottom.Item2;
+                playerEdgeTop = new IVector2(p.Position.X, p.Position.Y);
+                playerEdgeBottom = new IVector2(p.Position.X, p.Position.Y + Config.PaddleHeight);
+                return ballEdge.X >= playerEdgeBottom.X &&
+                       ballEdge.Y >= playerEdgeTop.Y &&
+                       ballEdge.Y <= playerEdgeBottom.Y;
             }
         }
 
@@ -145,31 +154,23 @@ namespace Server
             }
         }
 
-        public static Ball AddBall(int radius = Config.BallDefaultRadius)
+        public static Ball AddBall()
         {
             var rand = new Random();
-            if (Balls.Count < Config.MaxBalls)
+            var ball = new Ball()
             {
-                var ball = new Ball()
-                {
-                    Position = new Tuple<int, int>(0, 0),
-                    Number = Balls.Count == 0 ? 1 : Balls.Max(b => b.Number) + 1,
-                    Radius = radius,
-                    // Either -1 och 1 for both axis
-                    SpeedVector = new Tuple<int, int>(
-                        rand.Next(0, 1) == 0 ? -1 : 1, 
-                        rand.Next(0, 1) == 0 ? -1 : 1
-                    )
-                };
-                Balls.Add(ball);
-                Console.WriteLine("Ball added");
-                return ball;
-            }
-            else
-            {
-                Console.WriteLine("Max # balls reached");
-                return null;
-            }
+                Position = new IVector2(Config.WindowWidth / 2, Config.WindowHeight / 2),
+                Number = Balls.Count == 0 ? 1 : Balls.Max(b => b.Number) + 1,
+                Radius = rand.Next(Config.BallDefaultRadius - 25, Config.BallDefaultRadius + 25),
+                // Either -1 och 1 for both axis
+                Speed = new IVector2(
+                    rand.Next(0, 2) == 0 ? -Config.BallSpeed : Config.BallSpeed, 
+                    rand.Next(0, 2) == 0 ? -Config.BallSpeed : Config.BallSpeed
+                )
+            };
+            Balls.Add(ball);
+            Console.WriteLine("Ball added");
+            return ball;
         }
 
         public static Ball GetBall(int ballNr)
@@ -187,7 +188,7 @@ namespace Server
     public class Server
     {
         // Thread signal.  
-        public static ManualResetEvent playerConnectedLock = new ManualResetEvent(false);
+        public static ManualResetEvent playerConnectedLock = new (false);
         public static DateTime LastTick = DateTime.MinValue;
 
         public static void StartServer()
@@ -207,40 +208,23 @@ namespace Server
 
                 while (true)
                 {
-                    if (GameObject.PlayerOne == null)
+                    if (!GameObject.HasPlayers())
                     {
-                        // Set the event to nonsignaled state.  
                         playerConnectedLock.Reset();
 
                         // Start an asynchronous socket to listen for connections.  
-                        Console.WriteLine("Waiting for player 1...");
+                        Console.WriteLine("Waiting for players...");
                         listener.BeginAccept(
                             PlayerConnectedCallback,
                             listener);
 
                         // Wait until a connection is made before continuing.  
                         playerConnectedLock.WaitOne();
-                        Send(GameObject.PlayerOne, Network.PlayerAssigmentCmd(GameObject.PlayerOne.Number));
                     }
-
-                    if (GameObject.PlayerTwo == null)
+                    else
                     {
-                        // Set the event to nonsignaled state.  
-                        playerConnectedLock.Reset();
-
-                        // Start an asynchronous socket to listen for connections.  
-                        Console.WriteLine("Waiting for player 2...");
-                        listener.BeginAccept(
-                            PlayerConnectedCallback,
-                            listener);
-
-                        // Wait until a connection is made before continuing.  
-                        playerConnectedLock.WaitOne();
-                        Send(GameObject.PlayerTwo, Network.PlayerAssigmentCmd(GameObject.PlayerTwo.Number));
-                    }
-
-                    if (GameObject.HasPlayers())
                         RunSimulationTick();
+                    }
                 }
             }
             catch (Exception e)
@@ -254,25 +238,21 @@ namespace Server
         {
             if ((DateTime.Now - LastTick).TotalMilliseconds < Config.MsPerTick)
             {
-                LastTick = DateTime.Now;
                 return;
             }
 
             // Add balls up to minimum amount
-            if (GameObject.Balls.Count < Config.MinBalls)
+            if (GameObject.Balls.Count < Config.NrOfBalls)
             {
-                for (var i = GameObject.Balls.Count; i < Config.MinBalls; i++)
+                for (var i = GameObject.Balls.Count; i < Config.NrOfBalls; i++)
                 {
                     var ball = GameObject.AddBall();
                     if (ball != null)
-                        Broadcast(Network.BallAddCmd(
-                            ball.Number,
-                            ball.Position.Item1,
-                            ball.Position.Item2,
-                            ball.Radius,
-                            ball.SpeedVector.Item1,
-                            ball.SpeedVector.Item2)
-                        );
+                    {
+                        var cmd = Network.BallAddCmd(ball);
+                        Console.WriteLine($"Sending ADDBALL: {cmd}");
+                        Broadcast(cmd);
+                    }
                 }
             }
 
@@ -281,30 +261,38 @@ namespace Server
 
             // Handle scoring balls
             var scoringBallsOne = GameObject.GetPlayerOneScoringBalls();
+            var newScore = false;
             if (scoringBallsOne.Count > 0)
             {
                 GameObject.PlayerOne.Score += scoringBallsOne.Count;
+                newScore = true;
             }
             var scoringBallsTwo = GameObject.GetPlayerTwoScoringBalls();
             if (scoringBallsTwo.Count > 0)
             {
                 GameObject.PlayerTwo.Score += scoringBallsTwo.Count;
+                newScore = true;
             }
 
             // Update clients on removed balls, and remove them
-            scoringBallsOne.AddRange(scoringBallsTwo);
-            foreach (var b in scoringBallsOne)
+            if (newScore)
             {
-                Broadcast(Network.BallRemoveCmd(b.Number));
-                GameObject.RemoveBall(b);
+                scoringBallsOne.AddRange(scoringBallsTwo);
+                foreach (var b in scoringBallsOne)
+                {
+                    Broadcast(Network.BallRemoveCmd(b.Number));
+                    GameObject.RemoveBall(b);
+                }
+                // Update clients on new score
+                Broadcast(Network.ScoreUpdateCmd(GameObject.PlayerOne.Score, GameObject.PlayerTwo.Score));
             }
-
-            // Update clients on new score
-            Broadcast(Network.ScoreUpdateCmd(GameObject.PlayerOne.Score, GameObject.PlayerTwo.Score));
 
             // Update clients on ball positions
             foreach (var b in GameObject.Balls)
-                Broadcast(Network.BallPositionCmd(b.Number, b.Position.Item1, b.Position.Item2));
+                Broadcast(Network.BallPositionCmd(b));
+
+            // Move all the balls
+            GameObject.UpdateBallPositions();
 
             LastTick = DateTime.Now;
         }
@@ -320,7 +308,9 @@ namespace Server
             player = GameObject.AddPlayer(player); 
             Console.WriteLine($"Player {player.Number} connected!");
 
-            // Signal the main thread to continue.  
+            // Signal the main thread to continue.
+            Send(player, Network.PlayerAssigmentCmd(player.Number));
+
             playerConnectedLock.Set();
 
             handler.BeginReceive(player.Buffer, 0, Config.BufferSize, 0,
@@ -353,9 +343,9 @@ namespace Server
                 content = player.sb.ToString();
                 if (content.IndexOf("#") > -1)
                 {
-                    Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
-                    var msg = Network.ParseMessage(content);
-                    HandleMessage(msg);
+                    //Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
+                    var messages = Network.ParseMessage(content);
+                    HandleMessage(messages);
                     player.ResetBuffer();
                 }
             }
@@ -365,22 +355,26 @@ namespace Server
                 ReadCallback, player);
         }
 
-        public static void HandleMessage(Message message)
+        public static void HandleMessage(List<Message> messages)
         {
-            if (message == null)
-            {
-                Console.WriteLine("Invalid message");
+            if (messages == null || messages.Count == 0)
                 return;
-            }
 
-            switch (message.MessageType)
+            foreach (var message in messages)
             {
-                case Message.TypeEnum.PADDLE_POSITION:
-                    Console.WriteLine($"Got PADDLE_POSITION message"); 
-                    var player = GameObject.GetPlayer(message.Number);
-                    player.Position = new Tuple<int, int>(message.PositionX, message.PositionY);
-                    Broadcast(Network.PaddlePositionCmd(player.Number, player.Position.Item1, player.Position.Item2));
-                    break;
+                switch (message.MessageType)
+                {
+                    case Message.TypeEnum.PADDLE_POSITION:
+                        //Console.WriteLine($"Got PADDLE_POSITION message"); 
+                        var player = GameObject.GetPlayer(message.Number);
+                        player.Position = new IVector2(message.PositionX, message.PositionY);
+                        // Send new position
+                        if (player.IsFirstPlayer)
+                            Send(GameObject.PlayerTwo, Network.PaddlePositionCmd(player));
+                        else
+                            Send(GameObject.PlayerOne, Network.PaddlePositionCmd(player));
+                        break;
+                }
             }
 
         }
@@ -395,7 +389,7 @@ namespace Server
         {
             if (player == null)
                 return;
-            Console.WriteLine($"Sending {data} to player {player.Number}"); 
+            //Console.WriteLine($"Sending {data} to player {player.Number}"); 
             var byteData = Encoding.ASCII.GetBytes(data);
             var handler = player.Socket;
 
@@ -413,7 +407,7 @@ namespace Server
 
                 // Complete sending the data to the remote device.  
                 var bytesSent = handler.EndSend(ar);
-                Console.WriteLine("Sent {0} bytes to client.", bytesSent);
+                //Console.WriteLine("Sent {0} bytes to client.", bytesSent);
             }
             catch (Exception e)
             {
