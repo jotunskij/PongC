@@ -13,7 +13,7 @@ namespace Server
     {
         public static Player PlayerOne { get; set; }
         public static Player PlayerTwo { get; set; }
-        public static List<Ball> Balls { get; set; }
+        public static List<Ball> Balls { get; set; } = new();
 
         public static bool HasPlayers()
         {
@@ -69,6 +69,10 @@ namespace Server
             Tuple<int, int> ballEdge;
             Tuple<int, int> playerEdgeTop;
             Tuple<int, int> playerEdgeBottom;
+
+            if (p.Position == null)
+                return false;
+
             if (p.IsFirstPlayer)
             {
                 // Edge is ball left most point
@@ -149,7 +153,7 @@ namespace Server
                 var ball = new Ball()
                 {
                     Position = new Tuple<int, int>(0, 0),
-                    Number = Balls.Max(b => b.Number) + 1,
+                    Number = Balls.Count == 0 ? 1 : Balls.Max(b => b.Number) + 1,
                     Radius = radius,
                     // Either -1 och 1 for both axis
                     SpeedVector = new Tuple<int, int>(
@@ -352,7 +356,7 @@ namespace Server
                     Console.WriteLine($"Read {content.Length} bytes from socket. \n Data : {content}");
                     var msg = Network.ParseMessage(content);
                     HandleMessage(msg);
-                    player.sb.Clear();
+                    player.ResetBuffer();
                 }
             }
 
@@ -389,6 +393,8 @@ namespace Server
 
         private static void Send(Player player, string data)
         {
+            if (player == null)
+                return;
             Console.WriteLine($"Sending {data} to player {player.Number}"); 
             var byteData = Encoding.ASCII.GetBytes(data);
             var handler = player.Socket;

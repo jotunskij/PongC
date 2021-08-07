@@ -35,6 +35,10 @@
 
 6/8 1hr15min - monogame texturing, drawing, input handling
 
+7/8 15min - debugging session
+
+Total: 5hr50min
+
 ## Conceptual brainstorming
 client key press -> server -> broadcast new position -> client draws paddles
  - key press version will probably cause input lag, keeping local player position locally

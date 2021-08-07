@@ -91,7 +91,7 @@ namespace Client
                         Console.WriteLine($"Received {content}");
                         var msg = Network.ParseMessage(content);
                         HandleMessage(msg);
-                        Player.sb.Clear();
+                        Player.ResetBuffer();
                         receiveDone.Set();
                     }
                 }
